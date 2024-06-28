@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -37,14 +38,14 @@ func (c *Config) check() {
 		c.BitSize = 2048
 	}
 	if c.PrivateKeyFileName == "" {
-		c.PrivateKeyFileName = "private.pem"
+		c.PrivateKeyFileName = "private"
 	}
 	if c.PublicKeyFileName == "" {
-		c.PublicKeyFileName = "public.pem"
+		c.PublicKeyFileName = "public"
 	}
 
-	c.PrivateKeyFileName = filepath.Join(c.Dir, c.PrivateKeyFileName)
-	c.PublicKeyFileName = filepath.Join(c.Dir, c.PublicKeyFileName)
+	c.PrivateKeyFileName = filepath.Join(c.Dir, fmt.Sprintf("%s%s", c.PrivateKeyFileName, ".pem"))
+	c.PublicKeyFileName = filepath.Join(c.Dir, fmt.Sprintf("%s%s", c.PublicKeyFileName, ".pem"))
 }
 
 // PKCS#1 RSA 암호화 표준
