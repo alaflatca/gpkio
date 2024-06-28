@@ -43,7 +43,7 @@ err := pki.Verifiy(digest, base64Signature)
 
 ## Hash
 ```
-hashSum, err := pki.Hash([]byte("Hello, gpkio!"))
+hashData, err := pki.Hash([]byte("Hello, gpkio!"))
 ```
 
 ## Remove
