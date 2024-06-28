@@ -17,7 +17,89 @@ import (
 type PKI struct {
 	privateKey *rsa.PrivateKey
 	publicKey  *rsa.PublicKey
-	files      []string
+	cfg        *Config
+}
+
+type Config struct {
+	Dir                string // default ./
+	PrivateKeyFileName string // default private.pem
+	PublicKeyFileName  string // default public.pem
+	BitSize            int    // default 2048
+}
+
+func (c *Config) check() {
+	if c.Dir == "" {
+		c.Dir = "./"
+	} else {
+		directoryCheck(c.Dir)
+	}
+	if c.BitSize == 0 {
+		c.BitSize = 2048
+	}
+	if c.PrivateKeyFileName == "" {
+		c.PrivateKeyFileName = "private.pem"
+	}
+	if c.PublicKeyFileName == "" {
+		c.PublicKeyFileName = "public.pem"
+	}
+
+	c.PrivateKeyFileName = filepath.Join(c.Dir, c.PrivateKeyFileName)
+	c.PublicKeyFileName = filepath.Join(c.Dir, c.PublicKeyFileName)
+}
+
+// PKCS#1 RSA 암호화 표준
+// PKIX 공개 키 인증서 형식 정의
+func GenerateKey(cfg *Config) (*PKI, error) {
+	cfg.check()
+
+	//===== private key =====
+	private, err := rsa.GenerateKey(rand.Reader, cfg.BitSize)
+	if err != nil {
+		return nil, errors.Wrap(err, "GenerateKey()")
+	}
+	public := &private.PublicKey
+
+	pemPrivateKey, err := os.Create(cfg.PrivateKeyFileName)
+	if err != nil {
+		return nil, errors.Wrap(err, "Private Create()")
+	}
+	defer pemPrivateKey.Close()
+
+	pemPrivateBlock := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(private),
+	}
+	if err := pem.Encode(pemPrivateKey, pemPrivateBlock); err != nil {
+		return nil, errors.Wrap(err, "private Encode()")
+	}
+
+	//===== public key =====
+	pemPublicKey, err := os.Create(cfg.PublicKeyFileName)
+	if err != nil {
+		return nil, errors.Wrap(err, "public Create()")
+	}
+	defer pemPublicKey.Close()
+
+	publicBytes, err := x509.MarshalPKIXPublicKey(public)
+	if err != nil {
+		return nil, errors.Wrap(err, "MarshalPKIX()")
+	}
+
+	pemPublicBlock := &pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: publicBytes,
+	}
+	if err := pem.Encode(pemPublicKey, pemPublicBlock); err != nil {
+		return nil, errors.Wrap(err, "public Encode()")
+	}
+
+	pki := &PKI{
+		privateKey: private,
+		publicKey:  public,
+		cfg:        cfg,
+	}
+
+	return pki, nil
 }
 
 func (p *PKI) Encrypt(data []byte) ([]byte, error) {
@@ -79,72 +161,19 @@ func (p *PKI) Hash(data []byte) ([]byte, error) {
 }
 
 func (p *PKI) Remove() error {
-	for _, file := range p.files {
-		if _, err := os.Stat(file); os.IsNotExist(err) {
-			continue
+	if _, err := os.Stat(p.cfg.PrivateKeyFileName); !os.IsNotExist(err) {
+		// key exist
+		if err := os.Remove(p.cfg.PrivateKeyFileName); err != nil {
+			return err
 		}
-		if err := os.Remove(file); err != nil {
+	}
+	if _, err := os.Stat(p.cfg.PublicKeyFileName); !os.IsNotExist(err) {
+		// key exist
+		if err := os.Remove(p.cfg.PublicKeyFileName); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// PKCS#1 RSA 암호화 표준
-// PKIX 공개 키 인증서 형식 정의
-func GenerateKey(dir string, bitSize int) (*PKI, error) {
-	directoryCheck(dir)
-
-	//===== private key =====
-	private, err := rsa.GenerateKey(rand.Reader, bitSize)
-	if err != nil {
-		return nil, errors.Wrap(err, "GenerateKey()")
-	}
-	public := &private.PublicKey
-
-	privateKeyFileName := filepath.Join(dir, "private.pem")
-	pemPrivateKey, err := os.Create(privateKeyFileName)
-	if err != nil {
-		return nil, errors.Wrap(err, "Private Create()")
-	}
-	defer pemPrivateKey.Close()
-
-	pemPrivateBlock := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(private),
-	}
-	if err := pem.Encode(pemPrivateKey, pemPrivateBlock); err != nil {
-		return nil, errors.Wrap(err, "private Encode()")
-	}
-
-	//===== public key =====
-	publicKeyFileName := filepath.Join(dir, "public.pem")
-	pemPublicKey, err := os.Create(publicKeyFileName)
-	if err != nil {
-		return nil, errors.Wrap(err, "public Create()")
-	}
-	defer pemPublicKey.Close()
-
-	publicBytes, err := x509.MarshalPKIXPublicKey(public)
-	if err != nil {
-		return nil, errors.Wrap(err, "MarshalPKIX()")
-	}
-
-	pemPublicBlock := &pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: publicBytes,
-	}
-	if err := pem.Encode(pemPublicKey, pemPublicBlock); err != nil {
-		return nil, errors.Wrap(err, "public Encode()")
-	}
-
-	pki := &PKI{
-		privateKey: private,
-		publicKey:  public,
-		files:      []string{privateKeyFileName, publicKeyFileName},
-	}
-
-	return pki, nil
 }
 
 func directoryCheck(dirName string) {
