@@ -1,5 +1,5 @@
 # gpkio
-Go PKI
+A simple PKI library made of Golang
 
 ## Install
 ```
