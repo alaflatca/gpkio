@@ -1,6 +1,11 @@
 # gpkio
 Go PKI
 
+## Install
+```
+go get -u github.com/alaflatca/gpkio
+```
+
 ## Generate
 ```
 pki, err := gpkio.GenerateKey(&gpkio.Config{
