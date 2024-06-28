@@ -120,12 +120,12 @@ func (p *PKI) Decrypt(data []byte) ([]byte, error) {
 }
 
 func (p *PKI) Sign(data []byte) (string, error) {
-	dataHash, err := p.Hash(data)
+	hashData, err := p.Hash(data)
 	if err != nil {
 		return "", errors.Wrap(err, "Hash()")
 	}
 
-	signature, err := rsa.SignPSS(rand.Reader, p.privateKey, crypto.SHA256, dataHash, nil)
+	signature, err := rsa.SignPSS(rand.Reader, p.privateKey, crypto.SHA256, hashData, nil)
 	if err != nil {
 		return "", errors.Wrap(err, "SignPSS()")
 	}
@@ -135,7 +135,7 @@ func (p *PKI) Sign(data []byte) (string, error) {
 }
 
 func (p *PKI) Verifiy(digest []byte, base64Signature string) error {
-	digestHash, err := p.Hash(digest)
+	hashDigest, err := p.Hash(digest)
 	if err != nil {
 		return errors.Wrap(err, "Hash()")
 	}
@@ -145,7 +145,7 @@ func (p *PKI) Verifiy(digest []byte, base64Signature string) error {
 		return errors.Wrap(err, "Base64DecodeString()")
 	}
 
-	err = rsa.VerifyPSS(p.publicKey, crypto.SHA256, digestHash, signature, nil)
+	err = rsa.VerifyPSS(p.publicKey, crypto.SHA256, hashDigest, signature, nil)
 	if err != nil {
 		return errors.Wrap(err, "VerifyPSS()")
 	}
