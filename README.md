@@ -19,6 +19,11 @@ pki, err := gpkio.GenerateKey(&gpkio.Config{
 ==> ./keys/public-key.pem
 ```
 
+## Load
+```
+privateKey, publicKey, err := pki.LoadKey(pki.config.PrivateKeyFileName, pki.config.PublicKeyFileName)
+```
+
 ## Encrypt
 ```
 encryptedData, err := pki.Encrypt([]byte("Hello, gpkio!"))
