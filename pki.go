@@ -18,7 +18,7 @@ import (
 type PKI struct {
 	privateKey *rsa.PrivateKey
 	publicKey  *rsa.PublicKey
-	cfg        *Config
+	config     *Config
 }
 
 type Config struct {
@@ -48,19 +48,68 @@ func (c *Config) check() {
 	c.PublicKeyFileName = filepath.Join(c.Dir, fmt.Sprintf("%s%s", c.PublicKeyFileName, ".pem"))
 }
 
+func (p *PKI) LoadKey(privateKeyPath, publicKeyPath string) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	if _, err := os.Stat(privateKeyPath); os.IsNotExist(err) {
+		return nil, nil, err
+	}
+	if _, err := os.Stat(publicKeyPath); os.IsNotExist(err) {
+		return nil, nil, err
+	}
+
+	// private
+	privatePemBytes, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	privateBlock, _ := pem.Decode(privatePemBytes)
+	if privateBlock == nil {
+		return nil, nil, fmt.Errorf("%q decode fail", privateKeyPath)
+	}
+	if privateBlock.Type != "RSA PRIVATE KEY" {
+		return nil, nil, fmt.Errorf("not the rsa private key type: %q", privateBlock.Type)
+	}
+	privateKey, err := x509.ParsePKCS1PrivateKey(privateBlock.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// public
+	publicPemBytes, err := os.ReadFile(publicKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	publicBlock, _ := pem.Decode(publicPemBytes)
+	if publicBlock == nil {
+		return nil, nil, fmt.Errorf("%q decode fail", publicKeyPath)
+	}
+	if publicBlock.Type != "RSA PUBLIC KEY" {
+		return nil, nil, fmt.Errorf("not the rsa public key type: %q", publicBlock.Type)
+	}
+	pubKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	publicKey, ok := pubKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, nil, errors.New("interface {} is not *rsa.PublicKey")
+	}
+
+	return privateKey, publicKey, nil
+}
+
 // PKCS#1 RSA 암호화 표준
 // PKIX 공개 키 인증서 형식 정의
-func GenerateKey(cfg *Config) (*PKI, error) {
-	cfg.check()
+func GenerateKey(config *Config) (*PKI, error) {
+	config.check()
 
 	//===== private key =====
-	private, err := rsa.GenerateKey(rand.Reader, cfg.BitSize)
+	private, err := rsa.GenerateKey(rand.Reader, config.BitSize)
 	if err != nil {
 		return nil, errors.Wrap(err, "GenerateKey()")
 	}
 	public := &private.PublicKey
 
-	pemPrivateKey, err := os.Create(cfg.PrivateKeyFileName)
+	pemPrivateKey, err := os.Create(config.PrivateKeyFileName)
 	if err != nil {
 		return nil, errors.Wrap(err, "Private Create()")
 	}
@@ -75,7 +124,7 @@ func GenerateKey(cfg *Config) (*PKI, error) {
 	}
 
 	//===== public key =====
-	pemPublicKey, err := os.Create(cfg.PublicKeyFileName)
+	pemPublicKey, err := os.Create(config.PublicKeyFileName)
 	if err != nil {
 		return nil, errors.Wrap(err, "public Create()")
 	}
@@ -97,7 +146,7 @@ func GenerateKey(cfg *Config) (*PKI, error) {
 	pki := &PKI{
 		privateKey: private,
 		publicKey:  public,
-		cfg:        cfg,
+		config:     config,
 	}
 
 	return pki, nil
@@ -134,8 +183,8 @@ func (p *PKI) Sign(data []byte) (string, error) {
 	return b64signature, nil
 }
 
-func (p *PKI) Verifiy(digest []byte, base64Signature string) error {
-	hashDigest, err := p.Hash(digest)
+func (p *PKI) Verifiy(origin []byte, base64Signature string) error {
+	hashDigest, err := p.Hash(origin)
 	if err != nil {
 		return errors.Wrap(err, "Hash()")
 	}
@@ -162,15 +211,15 @@ func (p *PKI) Hash(data []byte) ([]byte, error) {
 }
 
 func (p *PKI) Remove() error {
-	if _, err := os.Stat(p.cfg.PrivateKeyFileName); !os.IsNotExist(err) {
+	if _, err := os.Stat(p.config.PrivateKeyFileName); !os.IsNotExist(err) {
 		// key exist
-		if err := os.Remove(p.cfg.PrivateKeyFileName); err != nil {
+		if err := os.Remove(p.config.PrivateKeyFileName); err != nil {
 			return err
 		}
 	}
-	if _, err := os.Stat(p.cfg.PublicKeyFileName); !os.IsNotExist(err) {
+	if _, err := os.Stat(p.config.PublicKeyFileName); !os.IsNotExist(err) {
 		// key exist
-		if err := os.Remove(p.cfg.PublicKeyFileName); err != nil {
+		if err := os.Remove(p.config.PublicKeyFileName); err != nil {
 			return err
 		}
 	}
