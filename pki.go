@@ -48,55 +48,6 @@ func (c *Config) check() {
 	c.PublicKeyFileName = filepath.Join(c.Dir, fmt.Sprintf("%s%s", c.PublicKeyFileName, ".pem"))
 }
 
-func (p *PKI) LoadKey(privateKeyPath, publicKeyPath string) (*rsa.PrivateKey, *rsa.PublicKey, error) {
-	if _, err := os.Stat(privateKeyPath); os.IsNotExist(err) {
-		return nil, nil, err
-	}
-	if _, err := os.Stat(publicKeyPath); os.IsNotExist(err) {
-		return nil, nil, err
-	}
-
-	// private
-	privatePemBytes, err := os.ReadFile(privateKeyPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	privateBlock, _ := pem.Decode(privatePemBytes)
-	if privateBlock == nil {
-		return nil, nil, fmt.Errorf("%q decode fail", privateKeyPath)
-	}
-	if privateBlock.Type != "RSA PRIVATE KEY" {
-		return nil, nil, fmt.Errorf("not the rsa private key type: %q", privateBlock.Type)
-	}
-	privateKey, err := x509.ParsePKCS1PrivateKey(privateBlock.Bytes)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// public
-	publicPemBytes, err := os.ReadFile(publicKeyPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	publicBlock, _ := pem.Decode(publicPemBytes)
-	if publicBlock == nil {
-		return nil, nil, fmt.Errorf("%q decode fail", publicKeyPath)
-	}
-	if publicBlock.Type != "RSA PUBLIC KEY" {
-		return nil, nil, fmt.Errorf("not the rsa public key type: %q", publicBlock.Type)
-	}
-	pubKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
-	if err != nil {
-		return nil, nil, err
-	}
-	publicKey, ok := pubKey.(*rsa.PublicKey)
-	if !ok {
-		return nil, nil, errors.New("interface {} is not *rsa.PublicKey")
-	}
-
-	return privateKey, publicKey, nil
-}
-
 // PKCS#1 RSA 암호화 표준
 // PKIX 공개 키 인증서 형식 정의
 func GenerateKey(config *Config) (*PKI, error) {
@@ -150,6 +101,55 @@ func GenerateKey(config *Config) (*PKI, error) {
 	}
 
 	return pki, nil
+}
+
+func (p *PKI) LoadKey(privateKeyPath, publicKeyPath string) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	if _, err := os.Stat(privateKeyPath); os.IsNotExist(err) {
+		return nil, nil, err
+	}
+	if _, err := os.Stat(publicKeyPath); os.IsNotExist(err) {
+		return nil, nil, err
+	}
+
+	// private
+	privatePemBytes, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	privateBlock, _ := pem.Decode(privatePemBytes)
+	if privateBlock == nil {
+		return nil, nil, fmt.Errorf("%q decode fail", privateKeyPath)
+	}
+	if privateBlock.Type != "RSA PRIVATE KEY" {
+		return nil, nil, fmt.Errorf("not the rsa private key type: %q", privateBlock.Type)
+	}
+	privateKey, err := x509.ParsePKCS1PrivateKey(privateBlock.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// public
+	publicPemBytes, err := os.ReadFile(publicKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	publicBlock, _ := pem.Decode(publicPemBytes)
+	if publicBlock == nil {
+		return nil, nil, fmt.Errorf("%q decode fail", publicKeyPath)
+	}
+	if publicBlock.Type != "RSA PUBLIC KEY" {
+		return nil, nil, fmt.Errorf("not the rsa public key type: %q", publicBlock.Type)
+	}
+	pubKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	publicKey, ok := pubKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, nil, errors.New("interface {} is not *rsa.PublicKey")
+	}
+
+	return privateKey, publicKey, nil
 }
 
 func (p *PKI) Encrypt(data []byte) ([]byte, error) {

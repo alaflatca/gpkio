@@ -41,9 +41,9 @@ base64Signature, err := pki.Sign([]byte("Hello, gpkio!"))
 
 ## Verify
 ```
-digest := []byte("Hello, gpkio!")
-base64Signature, err := pki.Sign(digest)
-err := pki.Verifiy(digest, base64Signature)
+origin := []byte("Hello, gpkio!")
+base64Signature, err := pki.Sign(origin)
+err := pki.Verifiy(origin, base64Signature)
 ```
 
 ## Hash
