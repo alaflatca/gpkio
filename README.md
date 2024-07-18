@@ -59,7 +59,7 @@ err := pki.Verifiy(origin, base64Signature)
 hashData, err := pki.Hash([]byte("Hello, gpkio!"))
 ```
 
-## Remove
+### Remove
 ```
 err := pki.Remove()
 ```
