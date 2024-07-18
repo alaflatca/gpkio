@@ -1,12 +1,20 @@
 # gpkio
-A simple PKI library made of Golang
-
-## Install
+- PKI, A simple PKI library made of Golang
+- DummyTLS, Dummy TLS for easy testing of HTTPS web servers ( certFile, KeyFile )
+  
+# Install
 ```
 go get -u github.com/alaflatca/gpkio
 ```
 
-## Generate
+## DummyTLS ( HTTPS Web Server Simple Test )
+```
+dummy := GenerateDummyTLS()
+http.ListenAndServeTLS(":443", dummy.CertFile, dummy.KeyFile, nil)
+```
+
+## PKI
+### Generate
 ```
 pki, err := gpkio.GenerateKey(&gpkio.Config{
     Dir:                "keys",          // default "./"
@@ -19,34 +27,34 @@ pki, err := gpkio.GenerateKey(&gpkio.Config{
 ==> ./keys/public-key.pem
 ```
 
-## Load
+### Load
 ```
 privateKey, publicKey, err := pki.LoadKey(pki.config.PrivateKeyFileName, pki.config.PublicKeyFileName)
 ```
 
-## Encrypt
+### Encrypt
 ```
 encryptedData, err := pki.Encrypt([]byte("Hello, gpkio!"))
 ```
 
-## Decrypt
+### Decrypt
 ```
 decryptedData, err := pki.Decrypt(encryptedData)
 ```
 
-## Sign
+### Sign
 ```
 base64Signature, err := pki.Sign([]byte("Hello, gpkio!"))
 ```
 
-## Verify
+### Verify
 ```
 origin := []byte("Hello, gpkio!")
 base64Signature, err := pki.Sign(origin)
 err := pki.Verifiy(origin, base64Signature)
 ```
 
-## Hash
+### Hash
 ```
 hashData, err := pki.Hash([]byte("Hello, gpkio!"))
 ```
