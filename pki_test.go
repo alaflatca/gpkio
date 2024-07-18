@@ -23,7 +23,7 @@ func TestPKI(t *testing.T) {
 }
 
 func setup(t *testing.T) *PKI {
-	pki, err := GenerateKey(&Config{
+	pki, err := GeneratePKI(&Config{
 		Dir:     "keys",
 		BitSize: 2048,
 	})

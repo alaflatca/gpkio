@@ -26,22 +26,28 @@ type Config struct {
 	PrivateKeyFileName string // default private.pem
 	PublicKeyFileName  string // default public.pem
 	BitSize            int    // default 2048
+	NotSave            bool
 }
 
 func (c *Config) check() {
 	if c.Dir == "" {
 		c.Dir = "./"
-	} else {
-		directoryCheck(c.Dir)
 	}
+
+	if _, err := os.Stat(c.Dir); os.IsNotExist(err) {
+		if err = os.Mkdir(c.Dir, 0700); err != nil {
+			panic(err)
+		}
+	}
+
 	if c.BitSize == 0 {
 		c.BitSize = 2048
 	}
 	if c.PrivateKeyFileName == "" {
-		c.PrivateKeyFileName = "private"
+		c.PrivateKeyFileName = "key"
 	}
 	if c.PublicKeyFileName == "" {
-		c.PublicKeyFileName = "public"
+		c.PublicKeyFileName = "pub"
 	}
 
 	c.PrivateKeyFileName = filepath.Join(c.Dir, fmt.Sprintf("%s%s", c.PrivateKeyFileName, ".pem"))
@@ -50,7 +56,7 @@ func (c *Config) check() {
 
 // PKCS#1 RSA 암호화 표준
 // PKIX 공개 키 인증서 형식 정의
-func GenerateKey(config *Config) (*PKI, error) {
+func GeneratePKI(config *Config) (*PKI, error) {
 	config.check()
 
 	//===== private key =====
@@ -60,38 +66,42 @@ func GenerateKey(config *Config) (*PKI, error) {
 	}
 	public := &private.PublicKey
 
-	pemPrivateKey, err := os.Create(config.PrivateKeyFileName)
-	if err != nil {
-		return nil, errors.Wrap(err, "Private Create()")
-	}
-	defer pemPrivateKey.Close()
+	if !config.NotSave {
+		pemPrivateKey, err := os.Create(config.PrivateKeyFileName)
+		if err != nil {
+			return nil, errors.Wrap(err, "Private Create()")
+		}
+		defer pemPrivateKey.Close()
 
-	pemPrivateBlock := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(private),
-	}
-	if err := pem.Encode(pemPrivateKey, pemPrivateBlock); err != nil {
-		return nil, errors.Wrap(err, "private Encode()")
+		pemPrivateBlock := &pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(private),
+		}
+		if err := pem.Encode(pemPrivateKey, pemPrivateBlock); err != nil {
+			return nil, errors.Wrap(err, "private Encode()")
+		}
 	}
 
 	//===== public key =====
-	pemPublicKey, err := os.Create(config.PublicKeyFileName)
-	if err != nil {
-		return nil, errors.Wrap(err, "public Create()")
-	}
-	defer pemPublicKey.Close()
+	if !config.NotSave {
+		pemPublicKey, err := os.Create(config.PublicKeyFileName)
+		if err != nil {
+			return nil, errors.Wrap(err, "public Create()")
+		}
+		defer pemPublicKey.Close()
 
-	publicBytes, err := x509.MarshalPKIXPublicKey(public)
-	if err != nil {
-		return nil, errors.Wrap(err, "MarshalPKIX()")
-	}
+		publicBytes, err := x509.MarshalPKIXPublicKey(public)
+		if err != nil {
+			return nil, errors.Wrap(err, "MarshalPKIX()")
+		}
 
-	pemPublicBlock := &pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: publicBytes,
-	}
-	if err := pem.Encode(pemPublicKey, pemPublicBlock); err != nil {
-		return nil, errors.Wrap(err, "public Encode()")
+		pemPublicBlock := &pem.Block{
+			Type:  "RSA PUBLIC KEY",
+			Bytes: publicBytes,
+		}
+		if err := pem.Encode(pemPublicKey, pemPublicBlock); err != nil {
+			return nil, errors.Wrap(err, "public Encode()")
+		}
 	}
 
 	pki := &PKI{
@@ -226,10 +236,6 @@ func (p *PKI) Remove() error {
 	return nil
 }
 
-func directoryCheck(dirName string) {
-	if _, err := os.Stat(dirName); os.IsNotExist(err) {
-		if err = os.Mkdir(dirName, 0700); err != nil {
-			panic(err)
-		}
-	}
+func (p *PKI) GenerateCert(template, parent *x509.Certificate, pub rsa.PublicKey, priv rsa.PrivateKey) {
+	x509.CreateCertificate(rand.Reader, template, parent, pub, priv)
 }
