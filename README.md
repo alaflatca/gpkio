@@ -7,13 +7,15 @@
 go get -u github.com/alaflatca/gpkio
 ```
 
+
+
 ## DummyTLS ( HTTPS Web Server Simple Test )
 ```
 dummy := gpkio.GenerateDummyTLS()
 http.ListenAndServeTLS(":443", dummy.CertFile, dummy.KeyFile, nil)
 ```
 
-## PKI
+## PKI ( private, public key )
 ### Generate
 ```
 pki, err := gpkio.GenerateKey(&gpkio.Config{
